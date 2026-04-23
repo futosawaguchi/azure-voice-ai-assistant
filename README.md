@@ -93,6 +93,7 @@ python main.py
 | `extra_wait_sec` | `1.0` | 未完結と判定した場合の追加待機秒数 |
 | `max_retry` | `2` | 完結判定のリトライ上限回数 |
 | `VAD_MODE` | `2` | 0〜3（大きいほど無音判定が積極的） |
+| `BARGE_IN` | `True` | `True`：AI発話中に割り込み可能 / `False`：AI発話終了後にユーザーが話す |
 
 ---
 
