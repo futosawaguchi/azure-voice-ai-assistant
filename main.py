@@ -35,6 +35,7 @@ vad           = webrtcvad.Vad(VAD_MODE)
 silence_sec    = 0.75
 extra_wait_sec = 1.0
 max_retry      = 2
+BARGE_IN = False  # False にするとAI発話中はマイクを止める
 
 # ===== 状態 =====
 is_ai_speaking    = threading.Event()
@@ -239,6 +240,8 @@ def is_echo_frame(frame_bytes: bytes) -> bool:
 
 def audio_callback(indata, frames, time_info, status):
     data = bytes(indata)
+    if not BARGE_IN and is_ai_speaking.is_set():
+        return
     raw_queue.put(data)
     if waiting_for_extra.is_set():
         extra_audio_queue.put(data)
@@ -257,11 +260,16 @@ def vad_loop():
         dtype="int16", channels=1, callback=audio_callback
     ):
         print("会話を開始します（Ctrl+C で終了）")
-        print(f"無音閾値: {silence_sec}秒 / 追加待機: {extra_wait_sec}秒 / 最大リトライ: {max_retry}回\n")
+        print(f"無音閾値: {silence_sec}秒 / 追加待機: {extra_wait_sec}秒 / 最大リトライ: {max_retry}回")
+        print(f"バージイン: {'有効' if BARGE_IN else '無効'}\n")
 
         while True:
             frame = raw_queue.get()
             if is_echo_frame(frame):
+                continue
+
+            # バージイン無効時はAI再生中にVAD判定しない
+            if not BARGE_IN and is_ai_speaking.is_set():
                 continue
 
             try:
@@ -272,7 +280,7 @@ def vad_loop():
             if is_speech:
                 if not in_speech:
                     in_speech = True
-                    if is_ai_speaking.is_set():
+                    if BARGE_IN and is_ai_speaking.is_set():
                         barge_in_event.set()
                 speech_frames.append(frame)
                 silent_count = 0
